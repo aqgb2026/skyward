@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Search, Alert } from '@/lib/database.types'
 import type { FareOption } from '@/lib/travelpayouts'
 
@@ -149,6 +149,208 @@ function AlertRow({ alert }: { alert: Alert }) {
 function Spinner() {
   return (
     <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+  )
+}
+
+// ─── Airport data ─────────────────────────────────────────────────────────────
+
+type Airport = { code: string; city: string; name: string; country: string; isMetro?: boolean }
+
+const AIRPORTS: Airport[] = [
+  // Metrópoles
+  { code: 'SAO', city: 'São Paulo', name: 'todos os aeroportos', country: 'Brasil', isMetro: true },
+  { code: 'RIO', city: 'Rio de Janeiro', name: 'todos os aeroportos', country: 'Brasil', isMetro: true },
+  { code: 'NYC', city: 'Nova York', name: 'todos os aeroportos', country: 'EUA', isMetro: true },
+  { code: 'LON', city: 'Londres', name: 'todos os aeroportos', country: 'Reino Unido', isMetro: true },
+  { code: 'PAR', city: 'Paris', name: 'todos os aeroportos', country: 'França', isMetro: true },
+  { code: 'MIL', city: 'Milão', name: 'todos os aeroportos', country: 'Itália', isMetro: true },
+  // Brasil
+  { code: 'GRU', city: 'São Paulo', name: 'Guarulhos', country: 'Brasil' },
+  { code: 'CGH', city: 'São Paulo', name: 'Congonhas', country: 'Brasil' },
+  { code: 'VCP', city: 'Campinas', name: 'Viracopos', country: 'Brasil' },
+  { code: 'GIG', city: 'Rio de Janeiro', name: 'Galeão', country: 'Brasil' },
+  { code: 'SDU', city: 'Rio de Janeiro', name: 'Santos Dumont', country: 'Brasil' },
+  { code: 'BSB', city: 'Brasília', name: 'Brasília', country: 'Brasil' },
+  { code: 'CNF', city: 'Belo Horizonte', name: 'Confins', country: 'Brasil' },
+  { code: 'POA', city: 'Porto Alegre', name: 'Salgado Filho', country: 'Brasil' },
+  { code: 'REC', city: 'Recife', name: 'Guararapes', country: 'Brasil' },
+  { code: 'FOR', city: 'Fortaleza', name: 'Pinto Martins', country: 'Brasil' },
+  { code: 'SSA', city: 'Salvador', name: 'Luís Eduardo Magalhães', country: 'Brasil' },
+  { code: 'FLN', city: 'Florianópolis', name: 'Hercílio Luz', country: 'Brasil' },
+  { code: 'CWB', city: 'Curitiba', name: 'Afonso Pena', country: 'Brasil' },
+  { code: 'NAT', city: 'Natal', name: 'São Gonçalo do Amarante', country: 'Brasil' },
+  { code: 'MCZ', city: 'Maceió', name: 'Zumbi dos Palmares', country: 'Brasil' },
+  { code: 'BEL', city: 'Belém', name: 'Val de Cans', country: 'Brasil' },
+  { code: 'MAO', city: 'Manaus', name: 'Eduardo Gomes', country: 'Brasil' },
+  // Portugal
+  { code: 'LIS', city: 'Lisboa', name: 'Humberto Delgado', country: 'Portugal' },
+  { code: 'OPO', city: 'Porto', name: 'Francisco Sá Carneiro', country: 'Portugal' },
+  { code: 'FAO', city: 'Faro', name: 'Faro', country: 'Portugal' },
+  // Europa
+  { code: 'MAD', city: 'Madri', name: 'Barajas', country: 'Espanha' },
+  { code: 'BCN', city: 'Barcelona', name: 'El Prat', country: 'Espanha' },
+  { code: 'CDG', city: 'Paris', name: 'Charles de Gaulle', country: 'França' },
+  { code: 'ORY', city: 'Paris', name: 'Orly', country: 'França' },
+  { code: 'LHR', city: 'Londres', name: 'Heathrow', country: 'Reino Unido' },
+  { code: 'LGW', city: 'Londres', name: 'Gatwick', country: 'Reino Unido' },
+  { code: 'FCO', city: 'Roma', name: 'Fiumicino', country: 'Itália' },
+  { code: 'MXP', city: 'Milão', name: 'Malpensa', country: 'Itália' },
+  { code: 'LIN', city: 'Milão', name: 'Linate', country: 'Itália' },
+  { code: 'FRA', city: 'Frankfurt', name: 'Frankfurt', country: 'Alemanha' },
+  { code: 'MUC', city: 'Munique', name: 'Franz Josef Strauss', country: 'Alemanha' },
+  { code: 'BER', city: 'Berlim', name: 'Brandenburg', country: 'Alemanha' },
+  { code: 'AMS', city: 'Amsterdã', name: 'Schiphol', country: 'Países Baixos' },
+  { code: 'ZRH', city: 'Zurique', name: 'Zurique', country: 'Suíça' },
+  { code: 'VIE', city: 'Viena', name: 'Schwechat', country: 'Áustria' },
+  { code: 'DUB', city: 'Dublin', name: 'Dublin', country: 'Irlanda' },
+  { code: 'ATH', city: 'Atenas', name: 'Eleftherios Venizelos', country: 'Grécia' },
+  { code: 'CPH', city: 'Copenhague', name: 'Kastrup', country: 'Dinamarca' },
+  { code: 'ARN', city: 'Estocolmo', name: 'Arlanda', country: 'Suécia' },
+  { code: 'HEL', city: 'Helsinki', name: 'Vantaa', country: 'Finlândia' },
+  { code: 'OSL', city: 'Oslo', name: 'Gardermoen', country: 'Noruega' },
+  { code: 'BRU', city: 'Bruxelas', name: 'Zaventem', country: 'Bélgica' },
+  { code: 'GVA', city: 'Genebra', name: 'Genebra', country: 'Suíça' },
+  { code: 'PRG', city: 'Praga', name: 'Václav Havel', country: 'Rep. Tcheca' },
+  { code: 'WAW', city: 'Varsóvia', name: 'Chopin', country: 'Polônia' },
+  { code: 'BUD', city: 'Budapeste', name: 'Liszt Ferenc', country: 'Hungria' },
+  // Américas
+  { code: 'JFK', city: 'Nova York', name: 'John F. Kennedy', country: 'EUA' },
+  { code: 'EWR', city: 'Nova York', name: 'Newark', country: 'EUA' },
+  { code: 'LGA', city: 'Nova York', name: 'LaGuardia', country: 'EUA' },
+  { code: 'MIA', city: 'Miami', name: 'Miami', country: 'EUA' },
+  { code: 'MCO', city: 'Orlando', name: 'Orlando', country: 'EUA' },
+  { code: 'LAX', city: 'Los Angeles', name: 'Los Angeles', country: 'EUA' },
+  { code: 'SFO', city: 'São Francisco', name: 'São Francisco', country: 'EUA' },
+  { code: 'ORD', city: 'Chicago', name: "O'Hare", country: 'EUA' },
+  { code: 'BOS', city: 'Boston', name: 'Logan', country: 'EUA' },
+  { code: 'YYZ', city: 'Toronto', name: 'Pearson', country: 'Canadá' },
+  { code: 'MEX', city: 'Cidade do México', name: 'Benito Juárez', country: 'México' },
+  { code: 'CUN', city: 'Cancún', name: 'Cancún', country: 'México' },
+  { code: 'BOG', city: 'Bogotá', name: 'El Dorado', country: 'Colômbia' },
+  { code: 'SCL', city: 'Santiago', name: 'Arturo Merino Benítez', country: 'Chile' },
+  { code: 'EZE', city: 'Buenos Aires', name: 'Ezeiza', country: 'Argentina' },
+  { code: 'LIM', city: 'Lima', name: 'Jorge Chávez', country: 'Peru' },
+  { code: 'UIO', city: 'Quito', name: 'Mariscal Sucre', country: 'Equador' },
+  { code: 'MVD', city: 'Montevidéu', name: 'Carrasco', country: 'Uruguai' },
+  // Ásia / Oriente Médio / África
+  { code: 'DXB', city: 'Dubai', name: 'Dubai', country: 'Emirados Árabes' },
+  { code: 'DOH', city: 'Doha', name: 'Hamad', country: 'Qatar' },
+  { code: 'AUH', city: 'Abu Dhabi', name: 'Zayed', country: 'Emirados Árabes' },
+  { code: 'IST', city: 'Istambul', name: 'Istambul', country: 'Turquia' },
+  { code: 'TLV', city: 'Tel Aviv', name: 'Ben Gurion', country: 'Israel' },
+  { code: 'NRT', city: 'Tóquio', name: 'Narita', country: 'Japão' },
+  { code: 'HND', city: 'Tóquio', name: 'Haneda', country: 'Japão' },
+  { code: 'HKG', city: 'Hong Kong', name: 'Hong Kong', country: 'Hong Kong' },
+  { code: 'SIN', city: 'Singapura', name: 'Changi', country: 'Singapura' },
+  { code: 'BKK', city: 'Bangkok', name: 'Suvarnabhumi', country: 'Tailândia' },
+  { code: 'ICN', city: 'Seul', name: 'Incheon', country: 'Coreia do Sul' },
+  { code: 'PEK', city: 'Pequim', name: 'Capital', country: 'China' },
+  { code: 'PVG', city: 'Xangai', name: 'Pudong', country: 'China' },
+  { code: 'SYD', city: 'Sydney', name: 'Kingsford Smith', country: 'Austrália' },
+  { code: 'MEL', city: 'Melbourne', name: 'Tullamarine', country: 'Austrália' },
+  { code: 'JNB', city: 'Joanesburgo', name: 'OR Tambo', country: 'África do Sul' },
+  { code: 'CPT', city: 'Cidade do Cabo', name: 'Cape Town', country: 'África do Sul' },
+  { code: 'CAI', city: 'Cairo', name: 'Cairo', country: 'Egito' },
+  { code: 'CMN', city: 'Casablanca', name: 'Mohammed V', country: 'Marrocos' },
+]
+
+// ─── AirportSelect ────────────────────────────────────────────────────────────
+
+function AirportSelect({
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  required,
+}: {
+  value: string
+  onChange: (code: string) => void
+  placeholder?: string
+  disabled?: boolean
+  required?: boolean
+}) {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const selected = AIRPORTS.find((a) => a.code === value)
+  const displayValue = open ? query : selected ? `${selected.code} · ${selected.city}` : value
+
+  const filtered =
+    query.length >= 1
+      ? AIRPORTS.filter((a) => {
+          const q = query.toLowerCase()
+          return (
+            a.code.toLowerCase().startsWith(q) ||
+            a.city.toLowerCase().includes(q) ||
+            a.name.toLowerCase().includes(q) ||
+            a.country.toLowerCase().includes(q)
+          )
+        }).slice(0, 12)
+      : []
+
+  return (
+    <div ref={containerRef} className="relative">
+      <input
+        required={required}
+        value={displayValue}
+        onChange={(e) => {
+          setQuery(e.target.value)
+          setOpen(true)
+          if (!e.target.value) onChange('')
+        }}
+        onFocus={() => {
+          setQuery('')
+          setOpen(true)
+        }}
+        disabled={disabled}
+        placeholder={placeholder}
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+      />
+      {open && filtered.length > 0 && (
+        <ul className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          {filtered.map((a) => (
+            <li key={a.code}>
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(a.code)
+                  setOpen(false)
+                  setQuery('')
+                }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center gap-2"
+              >
+                <span
+                  className={`font-mono font-bold w-10 shrink-0 ${
+                    a.isMetro ? 'text-purple-700' : 'text-blue-700'
+                  }`}
+                >
+                  {a.code}
+                </span>
+                <span className="text-gray-700 truncate">
+                  {a.city}
+                  <span className="text-gray-400">
+                    {' · '}
+                    {a.isMetro ? 'todos os aeroportos' : a.name}
+                  </span>
+                </span>
+                <span className="text-xs text-gray-400 ml-auto shrink-0">{a.country}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
 
@@ -500,32 +702,24 @@ export default function Home() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Origem (IATA) *
+                      Origem *
                     </label>
-                    <input
+                    <AirportSelect
                       required
                       value={form.origin}
-                      onChange={(e) =>
-                        setForm({ ...form, origin: e.target.value.toUpperCase() })
-                      }
-                      placeholder="GRU"
-                      maxLength={3}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onChange={(code) => setForm({ ...form, origin: code })}
+                      placeholder="GRU ou São Paulo..."
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Destino (IATA)
+                      Destino
                     </label>
-                    <input
+                    <AirportSelect
                       value={form.destination}
-                      onChange={(e) =>
-                        setForm({ ...form, destination: e.target.value.toUpperCase() })
-                      }
-                      placeholder={form.flexible_dest ? 'Qualquer destino' : 'LIS'}
+                      onChange={(code) => setForm({ ...form, destination: code })}
+                      placeholder={form.flexible_dest ? 'Qualquer destino' : 'LIS ou Lisboa...'}
                       disabled={form.flexible_dest}
-                      maxLength={3}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
                     />
                     <label className="flex items-center gap-2 mt-1.5 cursor-pointer">
                       <input
@@ -612,6 +806,37 @@ export default function Home() {
                       <option value="business">Executiva</option>
                       <option value="first">Primeira</option>
                     </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Estadia mínima (dias)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.min_stay}
+                      onChange={(e) =>
+                        setForm({ ...form, min_stay: Number(e.target.value) })
+                      }
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Estadia máxima (dias)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.max_stay}
+                      onChange={(e) =>
+                        setForm({ ...form, max_stay: Number(e.target.value) })
+                      }
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
                 </div>
 

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from('searches')
-    .insert(body)
+    .insert({ id: crypto.randomUUID(), ...body })
     .select()
     .single()
 

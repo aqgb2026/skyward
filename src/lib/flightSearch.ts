@@ -1,6 +1,20 @@
 import { getCheapestPrices, parseToFareOptions, FareOption } from './travelpayouts'
 import { searchFlights, getOffers, parseFareOptions } from './duffel'
 
+const METRO_AIRPORTS: Record<string, string[]> = {
+  SAO: ['GRU', 'CGH', 'VCP'],
+  RIO: ['GIG', 'SDU'],
+  NYC: ['JFK', 'EWR', 'LGA'],
+  LON: ['LHR', 'LGW'],
+  PAR: ['CDG', 'ORY'],
+  MIL: ['MXP', 'LIN'],
+}
+
+function expandMetro(code: string): string {
+  const airports = METRO_AIRPORTS[code.toUpperCase()]
+  return airports ? airports[0] : code.toUpperCase()
+}
+
 export type FlightSearchResult = {
   currentPriceBRL: number | null
   fareOptions: FareOption[]
@@ -16,10 +30,13 @@ export async function searchPriceForMonitor(search: {
   passengers?: number
   cabin_class?: string
 }): Promise<FlightSearchResult> {
+  const origin = expandMetro(search.origin)
+  const destination = search.destination ? expandMetro(search.destination) : undefined
+
   // Step 1: Travelpayouts
   const tpData = await getCheapestPrices({
-    origin: search.origin,
-    destination: search.destination,
+    origin,
+    destination,
     departMonth: search.date_start?.slice(0, 7),
     returnMonth: search.date_end?.slice(0, 7),
   })
@@ -32,10 +49,10 @@ export async function searchPriceForMonitor(search: {
   const withinThreshold =
     tpMinPrice === null || tpMinPrice <= search.max_price_brl * 1.15
 
-  if (withinThreshold && search.destination && search.date_start) {
+  if (withinThreshold && destination && search.date_start) {
     const offerRequestId = await searchFlights({
-      origin: search.origin,
-      destination: search.destination,
+      origin,
+      destination,
       departDate: search.date_start,
       returnDate: search.date_end,
       adults: search.passengers ?? 1,
